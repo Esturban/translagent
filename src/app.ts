@@ -80,7 +80,7 @@ const server = serve({
     // Serve the HTML page for GET requests to "/"
     if (req.method === "GET" && url.pathname === "/") {
       try {
-        const htmlPath = path.join(process.cwd(), "public", "simple.html");
+        const htmlPath = path.join(process.cwd(), "public", "index.html");
         
         if (fs.existsSync(htmlPath)) {
           const content = fs.readFileSync(htmlPath, 'utf-8');
