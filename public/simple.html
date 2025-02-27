@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arabic Translator</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .app-description {
+            color: #7f8c8d;
+            font-size: 16px;
+        }
+        
+        .translation-container {
+            display: flex;
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .translation-container {
+                flex-direction: column;
+            }
+        }
+        
+        .input-panel, .output-panel {
+            flex: 1;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .panel-title {
+            margin-bottom: 15px;
+            color: #34495e;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        .text-input {
+            width: 100%;
+            height: 200px;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+        
+        .translate-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .translate-btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .translate-btn:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        .output-box {
+            background-color: #f8f9fa;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+            min-height: 80px;
+        }
+        
+        .arabic-text {
+            font-size: 22px;
+            direction: rtl;
+            text-align: right;
+            color: #333;
+        }
+        
+        .transliteration-text {
+            font-size: 16px;
+            color: #7f8c8d;
+        }
+        
+        .output-label {
+            margin-bottom: 10px;
+            color: #34495e;
+            font-weight: 600;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            color: #7f8c8d;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,0.1);
+            border-radius: 50%;
+            border-top-color: #3498db;
+            animation: spin 1s ease infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            color: #e74c3c;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>English to Arabic Translator</h1>
+            <p class="app-description">Translate English text to Arabic and see the transliteration</p>
+        </header>
+        
+        <main class="translation-container">
+            <!-- Left side - Input -->
+            <div class="input-panel">
+                <h2 class="panel-title">English Input</h2>
+                <textarea class="text-input" id="sourceText" placeholder="Enter text to translate..."></textarea>
+                <button class="translate-btn" id="translateBtn">Translate</button>
+                <p class="error-message" id="errorMsg"></p>
+            </div>
+            
+            <!-- Right side - Output -->
+            <div class="output-panel">
+                <h2 class="panel-title">Results</h2>
+                
+                <div>
+                    <p class="output-label">Arabic Translation</p>
+                    <div class="output-box arabic-text" id="arabicOutput"></div>
+                </div>
+                
+                <div>
+                    <p class="output-label">Transliteration</p>
+                    <div class="output-box transliteration-text" id="transliterationOutput"></div>
+                </div>
+                
+                <div class="loading" id="loadingIndicator">
+                    <span class="spinner"></span> Translating...
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sourceText = document.getElementById('sourceText');
+            const translateBtn = document.getElementById('translateBtn');
+            const arabicOutput = document.getElementById('arabicOutput');
+            const transliterationOutput = document.getElementById('transliterationOutput');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const errorMsg = document.getElementById('errorMsg');
+            
+            // Function to translate text
+            async function translateText() {
+                const text = sourceText.value.trim();
+                if (!text) {
+                    showError('Please enter some text to translate.');
+                    return;
+                }
+                
+                // Reset UI
+                clearError();
+                showLoading(true);
+                
+                try {
+                    const response = await fetch('http://localhost:3001', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ text })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Server responded with status: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    // Display results
+                    arabicOutput.textContent = data.translatedText || '';
+                    transliterationOutput.textContent = data.transliteratedText || '';
+                } catch (error) {
+                    console.error('Translation error:', error);
+                    showError(`Translation failed: ${error.message}`);
+                    
+                    // Clear outputs
+                    arabicOutput.textContent = '';
+                    transliterationOutput.textContent = '';
+                } finally {
+                    showLoading(false);
+                }
+            }
+            
+            // Helper functions
+            function showLoading(isLoading) {
+                loadingIndicator.style.display = isLoading ? 'block' : 'none';
+                translateBtn.disabled = isLoading;
+            }
+            
+            function showError(message) {
+                errorMsg.textContent = message;
+                errorMsg.style.display = 'block';
+            }
+            
+            function clearError() {
+                errorMsg.textContent = '';
+                errorMsg.style.display = 'none';
+            }
+            
+            // Event listeners
+            translateBtn.addEventListener('click', translateText);
+            
+            // Allow Ctrl+Enter to translate
+            sourceText.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    translateText();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
