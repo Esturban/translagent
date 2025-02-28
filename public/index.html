@@ -212,13 +212,13 @@
                 showLoading(true);
                 
                 try {
-                    const response = await fetch('http://localhost:3001', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ text })
-                    });
+                    const response = await fetch('/translate', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ text })
+});
                     
                     if (!response.ok) {
                         throw new Error(`Server responded with status: ${response.status}`);
