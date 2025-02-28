@@ -2,61 +2,13 @@ import { serve } from "bun";
 import OpenAI from 'openai';
 import fs from 'node:fs';
 import path from 'node:path';
+import { translateText, transliterateText } from './translation';
+import { isRateLimited } from './utils/rate-limiter';
 
 // Initialize the OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-
-// Translation function using OpenAI
-async function translateText(text: string): Promise<string> {
-  try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: "You are a translator that translates English text to Arabic. Only respond with the translated text."
-        },
-        {
-          role: "user",
-          content: text
-        }
-      ],
-      max_tokens: 500
-    });
-    
-    return response.choices[0].message.content || "";
-  } catch (error) {
-    console.error("Translation error:", error);
-    throw error;
-  }
-}
-
-// Transliteration function using OpenAI
-async function transliterateText(arabicText: string): Promise<string> {
-  try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: "You are a transliterator that converts Arabic text to its Latin alphabet pronunciation equivalent. Only respond with the transliterated text."
-        },
-        {
-          role: "user",
-          content: arabicText
-        }
-      ],
-      max_tokens: 500
-    });
-    
-    return response.choices[0].message.content || "";
-  } catch (error) {
-    console.error("Transliteration error:", error);
-    throw error;
-  }
-}
 
 // Create a server that serves both the API and static HTML
 const server = serve({
@@ -72,6 +24,20 @@ const server = serve({
       "Access-Control-Allow-Headers": "Content-Type"
     };
     
+    // Get client IP for rate limiting
+    const ip = req.headers.get("x-forwarded-for") || "unknown";
+    
+    // Check rate limit (but not for OPTIONS requests)
+    if (req.method !== "OPTIONS" && isRateLimited(ip)) {
+      return new Response(
+        JSON.stringify({ error: "Rate limit exceeded. Try again later." }),
+        { 
+          status: 429, 
+          headers: { ...headers, "Content-Type": "application/json", "Retry-After": "60" }
+        }
+      );
+    }
+    
     // Handle preflight requests
     if (req.method === "OPTIONS") {
       return new Response(null, { headers });
@@ -85,10 +51,7 @@ const server = serve({
         if (fs.existsSync(htmlPath)) {
           const content = fs.readFileSync(htmlPath, 'utf-8');
           return new Response(content, { 
-            headers: { 
-              ...headers, 
-              "Content-Type": "text/html" 
-            } 
+            headers: { ...headers, "Content-Type": "text/html" } 
           });
         } else {
           return new Response("HTML file not found", { status: 404, headers });
@@ -103,7 +66,7 @@ const server = serve({
     }
     
     // Handle POST requests for translation
-    if (req.method === "POST") {
+    if (req.method === "POST" && (url.pathname === "/" || url.pathname === "/translate")) {
       try {
         // Parse the JSON body
         const body = await req.json();
@@ -119,11 +82,9 @@ const server = serve({
           );
         }
         
-        // Translate the text
-        const translatedText = await translateText(text);
-        
-        // Use OpenAI for transliteration instead of the package
-        const transliteratedText = await transliterateText(translatedText);
+        // Translate and transliterate the text using our modules
+        const translatedText = await translateText(text, openai);
+        const transliteratedText = await transliterateText(translatedText, openai);
         
         // Return the response
         return new Response(
@@ -154,6 +115,4 @@ const server = serve({
   }
 });
 
-// console.log("Server running on http://localhost:3001");
-// console.log("- UI available at http://localhost:3001/");
-// console.log("- API accepts POST requests with JSON body: {'text': 'your text here'}");
+console.log("Server running on http://localhost:3001");
