@@ -1,0 +1,14 @@
+{
+  "name": "translagent-api",
+  "version": "1.0.0",
+  "description": "Arabic translation API",
+  "main": "src/app.ts",
+  "scripts": {
+    "start": "bun src/app.ts",
+    "dev": "bun --watch src/app.ts"
+  },
+  "dependencies": {
+    "openai": "^4.0.0",
+    "@sindresorhus/transliterate": "^1.6.0"
+  }
+}
