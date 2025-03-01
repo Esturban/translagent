@@ -3,21 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arabic Translator</title>
+    <title>Translagent</title>
     <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>English to Arabic Translator</h1>
-            <p class="app-description">Translate English text to Arabic and see the transliteration</p>
+            <h1>Translagent</h1>
+            <p class="app-description">Helping you translate... and learn! 📝</p>
         </header>
         
         <main class="translation-container">
             <!-- Left side - Input -->
             <div class="input-panel">
                 <h2 class="panel-title">English Input</h2>
+
                 <textarea class="text-input" id="sourceText" placeholder="Enter text to translate..."></textarea>
+                <div class="language-selector">
+                    <label for="languageSelect">Translate to:</label>
+                    <select id="languageSelect" class="language-dropdown">
+                        <option value="ar">Arabic</option>
+                        <option value="zh">Chinese (Mandarin)</option>
+                    </select>
+                </div>
                 <button class="translate-btn" id="translateBtn">Translate</button>
                 <p class="error-message" id="errorMsg"></p>
             </div>
@@ -27,7 +35,7 @@
                 <h2 class="panel-title">Results</h2>
                 
                 <div>
-                    <p class="output-label">Arabic Translation</p>
+                    <p class="output-label">Translation</p>
                     <div class="output-container">
                         <div class="output-box arabic-text" id="arabicOutput"></div>
                         <button class="audio-btn" id="speakBtn" title="Listen" disabled>

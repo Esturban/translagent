@@ -11,6 +11,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to translate text
     async function translateText() {
         const text = sourceText.value.trim();
+        const language = document.getElementById('languageSelect').value; 
+    
         if (!text) {
             showError('Please enter some text to translate.');
             return;
@@ -26,7 +28,7 @@ method: 'POST',
 headers: {
 'Content-Type': 'application/json'
 },
-body: JSON.stringify({ text })
+body: JSON.stringify({ text, language })
 });
             
             if (!response.ok) {
@@ -90,9 +92,9 @@ let isPlaying = false;
 
 // Function to handle text-to-speech
 async function speakText() {
-const arabicText = arabicOutput.textContent;
+const langText = arabicOutput.textContent;
 
-if (!arabicText) {
+if (!langText) {
 showError('No text to speak.');
 return;
 }
@@ -115,7 +117,7 @@ const response = await fetch('/speak', {
     headers: {
         'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ text: arabicText })
+    body: JSON.stringify({ text: langText })
 });
 
 if (!response.ok) {
