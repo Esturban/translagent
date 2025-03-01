@@ -182,3 +182,30 @@ cursor: not-allowed;
 .audio-btn.playing {
 color: #e74c3c;
 }
+
+
+.language-selector {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.language-selector label {
+    margin-right: 10px;
+    font-weight: 500;
+    color: #34495e;
+}
+
+.language-dropdown {
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    background-color: white;
+    cursor: pointer;
+}
+
+.language-dropdown:focus {
+    outline: none;
+    border-color: #3498db;
+}
