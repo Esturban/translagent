@@ -1,7 +1,7 @@
 {
   "name": "translagent-api",
   "version": "0.0.2",
-  "description": "Arabic translation API",
+  "description": "AI Translation and Transliteration for select languages with different characters",
   "main": "src/app.ts",
   "scripts": {
     "start": "bun src/app.ts",
