@@ -157,7 +157,7 @@ const server = serve({
     }
         // Parse the JSON body
         const body = await req.json();
-        const { text } = body;
+        const { text, language="ar" } = body;
         
         if (!text) {
           return new Response(
@@ -168,10 +168,19 @@ const server = serve({
             }
           );
         }
-        
+        // Validate language
+        if (language !== "ar" && language !== "zh") {
+          return new Response(
+            JSON.stringify({ error: "Unsupported language. Currently supporting 'ar' (Arabic) and 'zh' (Chinese)" }),
+            { 
+              status: 400, 
+              headers: { ...headers, "Content-Type": "application/json" }
+            }
+          );
+        }
         // Translate and transliterate the text using our modules
-        const translatedText = await translateText(text, openai);
-        const transliteratedText = await transliterateText(translatedText, openai);
+        const translatedText = await translateText(text, openai,0,language);
+        const transliteratedText = await transliterateText(translatedText, openai,0,language);
         
         // Return the response
         return new Response(
@@ -197,7 +206,7 @@ if (req.method === "POST" && url.pathname === "/speak") {
   try {
     // Parse the JSON body
     const body = await req.json();
-    const { text } = body;
+    const { text, language="ar" } = body;
     
     if (!text) {
       return new Response(
@@ -209,8 +218,8 @@ if (req.method === "POST" && url.pathname === "/speak") {
       );
     }
     
-    // Generate a cache key based on the text and voice
-    const hash = crypto.createHash('md5').update(`${text}-onyx`).digest('hex');
+    const voice = language === "ar" ? "onyx" : "nova";
+    const hash = crypto.createHash('md5').update(`${text}-${voice}-${language}`).digest('hex');
     const cacheFilePath = path.join(CACHE_DIR, `${hash}.mp3`);
     
     let buffer: ArrayBuffer;
