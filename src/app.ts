@@ -4,40 +4,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { translateText, transliterateText } from './translation';
 import { isRateLimited } from './utils/rate-limiter';
-import crypto from 'node:crypto';
+import { 
+  speak, 
+  handleSpeakError, 
+  audioCache, 
+  CACHE_DIR, 
+  cleanupCache 
+} from './speak';
 
-// Create a simple in-memory cache for audio
-const audioCache = new Map<string, ArrayBuffer>();
-const CACHE_DIR = path.join(process.cwd(), 'cache', 'audio');
-
-// Create cache directory if it doesn't exist
-if (!fs.existsSync(CACHE_DIR)) {
-  fs.mkdirSync(CACHE_DIR, { recursive: true });
-}
-
-// Function to clean up old cache files
-function cleanupCache(maxAgeMs = 7 * 24 * 60 * 60 * 1000) { // Default: 7 days
-  try {
-    console.log('Running cache cleanup...');
-    const files = fs.readdirSync(CACHE_DIR);
-    const now = Date.now();
-    let deletedCount = 0;
-    
-    files.forEach(file => {
-      const filePath = path.join(CACHE_DIR, file);
-      const stats = fs.statSync(filePath);
-      
-      if (now - stats.mtimeMs > maxAgeMs) {
-        fs.unlinkSync(filePath);
-        deletedCount++;
-      }
-    });
-    
-    // console.log(`Cache cleanup complete. Deleted ${deletedCount} files.`);
-  } catch (err) {
-    console.error('Cache cleanup error:', err);
-  }
-}
 
 // Run cleanup periodically (every 24 hours)
 const cleanupInterval = setInterval(() => cleanupCache(), 24 * 60 * 60 * 1000);
@@ -218,63 +192,13 @@ if (req.method === "POST" && url.pathname === "/speak") {
       );
     }
     
-    const voice = language === "ar" ? "onyx" : "nova";
-    const hash = crypto.createHash('md5').update(`${text}-${voice}-${language}`).digest('hex');
-    const cacheFilePath = path.join(CACHE_DIR, `${hash}.mp3`);
+    // Use the new speak module
+    const result = await speak({ text, language, headers }, openai);
     
-    let buffer: ArrayBuffer;
-    
-
-        // Check if we have this audio in memory cache
-        if (audioCache.has(hash)) {
-          buffer = audioCache.get(hash)!;
-        } 
-        // Check if we have this audio on disk
-        else if (fs.existsSync(cacheFilePath)) {
-          const fileData = fs.readFileSync(cacheFilePath);
-          buffer = fileData.buffer.slice(
-            fileData.byteOffset, 
-            fileData.byteOffset + fileData.byteLength
-          );
-          // Also store in memory for faster access next time
-          audioCache.set(hash, buffer);
-        } 
-        // If not in cache, call the API
-        else {
-          console.log('Generating new audio from API');
-          // Generate speech using OpenAI API
-          const mp3 = await openai.audio.speech.create({
-            model: "tts-1",
-            voice: "onyx",
-            input: text,
-          });
-          
-          // Convert the response to an ArrayBuffer
-          buffer = await mp3.arrayBuffer();
-          
-          // Cache the audio both in memory and on disk
-          audioCache.set(hash, buffer);
-          fs.writeFileSync(cacheFilePath, Buffer.from(buffer));
-        }
-        
-        // Return the audio data
-        return new Response(buffer, { 
-          headers: { 
-            ...headers, 
-            "Content-Type": "audio/mpeg",
-            "Cache-Control": "max-age=31536000" // Cache for 1 year in the browser
-          } 
-        });
+    // Return the audio data
+    return new Response(result.buffer, { headers: result.headers });
   } catch (error) {
-    console.error("Speech synthesis error:", error);
-    
-    return new Response(
-      JSON.stringify({ error: "Failed to generate speech", message: error.message }),
-      { 
-        status: 500, 
-        headers: { ...headers, "Content-Type": "application/json" }
-      }
-    );
+    return handleSpeakError(error, headers);
   }
 }
 
