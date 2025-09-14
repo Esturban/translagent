@@ -10,7 +10,7 @@ export async function translateText(text: string, openai: OpenAI, temperature: n
       systemMessage = "You are an expert translator that translates English text to Mandarin Chinese. Only respond with the translated text.";
     }
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5-nano",
       messages: [
         {
           role: "system",
