@@ -21,10 +21,8 @@ export async function translateText(text: string, openai: OpenAI, temperature: n
           content: text
         }
       ],
-      max_tokens: 500,
-      temperature: temperature
+      max_completion_tokens: 500
     });
-    
     return response.choices[0].message.content || "";
   } catch (error) {
     console.error("Translation error:", error);
