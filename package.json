@@ -6,7 +6,7 @@
   "scripts": {
     "start": "bun src/app.ts",
     "dev": "bun --watch src/app.ts",
-    "build": "mkdir -p netlify/functions && bun build ./src/netlify-functions/translate.ts --outdir=netlify/functions && bun build ./src/netlify-functions/speak.ts --outdir=netlify/functions"
+    "build": "echo 'Cloud Run deployment uses the Dockerfile; no separate build step is required.'"
   },
   "dependencies": {
     "openai": "^4.0.0",
