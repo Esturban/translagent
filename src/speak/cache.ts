@@ -12,6 +12,9 @@ if (!fs.existsSync(CACHE_DIR)) {
   fs.mkdirSync(CACHE_DIR, { recursive: true });
 }
 
+// This cache is opportunistic only. On Cloud Run it is instance-local and
+// ephemeral, so it improves repeat requests but does not provide persistence.
+
 /**
  * Generates a hash for the given text and voice parameters
  */
@@ -33,10 +36,7 @@ export async function getFromCache(hash: string): Promise<ArrayBuffer | null> {
   // Then check disk cache
   if (fs.existsSync(cacheFilePath)) {
     const fileData = fs.readFileSync(cacheFilePath);
-    const buffer = fileData.buffer.slice(
-      fileData.byteOffset, 
-      fileData.byteOffset + fileData.byteLength
-    );
+    const buffer = Uint8Array.from(fileData).buffer;
     
     // Store in memory for faster access next time
     audioCache.set(hash, buffer);

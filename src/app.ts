@@ -3,14 +3,13 @@ import OpenAI from 'openai';
 import fs from 'node:fs';
 import path from 'node:path';
 import { translateText, transliterateText } from './translation';
-import { isRateLimited } from './utils/rate-limiter';
+import { getRateLimitWindowSeconds, isRateLimited } from './utils/rate-limiter';
 import { 
   speak, 
   handleSpeakError, 
-  audioCache, 
-  CACHE_DIR, 
   cleanupCache 
 } from './speak';
+import { isSupportedLanguage, MAX_TEXT_LENGTH, type SupportedLanguage } from './types';
 
 
 // Run cleanup periodically (every 24 hours)
@@ -37,10 +36,71 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const port = Number(process.env.PORT || 3001);
+
+function jsonResponse(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...extraHeaders,
+      "Content-Type": "application/json"
+    }
+  });
+}
+
+function jsonError(
+  code: string,
+  message: string,
+  status: number,
+  extraHeaders: Record<string, string> = {}
+) {
+  return jsonResponse({ error: { code, message } }, status, extraHeaders);
+}
+
+async function parseJsonBody(req: Request, headers: Record<string, string>) {
+  try {
+    return await req.json();
+  } catch {
+    return jsonError("invalid_json", "Request body must be valid JSON.", 400, headers);
+  }
+}
+
+function validateTranslateRequest(
+  body: unknown,
+  headers: Record<string, string>
+): { text: string; language: SupportedLanguage } | Response {
+  if (!body || typeof body !== "object") {
+    return jsonError("invalid_json", "Request body must be a JSON object.", 400, headers);
+  }
+
+  const payload = body as { text?: unknown; language?: unknown };
+  const rawText = typeof payload.text === "string" ? payload.text.trim() : "";
+  const language = typeof payload.language === "string" ? payload.language : "ar";
+
+  if (!rawText) {
+    return jsonError("missing_text", "The 'text' field is required.", 400, headers);
+  }
+
+  if (rawText.length > MAX_TEXT_LENGTH) {
+    return jsonError(
+      "text_too_long",
+      `The 'text' field must be ${MAX_TEXT_LENGTH} characters or fewer.`,
+      413,
+      headers
+    );
+  }
+
+  if (!isSupportedLanguage(language)) {
+    return jsonError("unsupported_language", "Supported languages are 'ar' and 'zh'.", 400, headers);
+  }
+
+  return { text: rawText, language };
+}
+
 // Create a server that serves both the API and static HTML
-const server = serve({
-  port: 3001,
-  async fetch(req) {
+serve({
+  port,
+  async fetch(req: Request) {
     const url = new URL(req.url);
     console.log(`${req.method} ${url.pathname}`);
     
@@ -58,6 +118,10 @@ const server = serve({
     // Handle preflight requests
     if (req.method === "OPTIONS") {
       return new Response(null, { headers });
+    }
+
+    if (req.method === "GET" && url.pathname === "/healthz") {
+      return jsonResponse({ ok: true }, 200, headers);
     }
     
     // Serve the HTML page for GET requests to "/"
@@ -116,60 +180,42 @@ const server = serve({
       }
     }
     // Handle POST requests for translation
-    if (req.method === "POST" && (url.pathname === "/" || url.pathname === "/translate")) {
+    if (req.method === "POST" && url.pathname === "/translate") {
       try {
 
-            // Apply rate limiting only for translation requests
-    if (isRateLimited(ip)) {
-      return new Response(
-        JSON.stringify({ error: "Rate limit exceeded. Try again later." }),
-        { 
-          status: 429, 
-          headers: { ...headers, "Content-Type": "application/json", "Retry-After": "300" }
-        }
-      );
-    }
-        // Parse the JSON body
-        const body = await req.json();
-        const { text, language="ar" } = body;
-        
-        if (!text) {
-          return new Response(
-            JSON.stringify({ error: "Missing 'text' field" }),
-            { 
-              status: 400, 
-              headers: { ...headers, "Content-Type": "application/json" }
-            }
+        if (isRateLimited(ip)) {
+          return jsonError(
+            "rate_limit_exceeded",
+            "Rate limit exceeded. Try again later.",
+            429,
+            { ...headers, "Retry-After": String(getRateLimitWindowSeconds()) }
           );
         }
-        // Validate language
-        if (language !== "ar" && language !== "zh") {
-          return new Response(
-            JSON.stringify({ error: "Unsupported language. Currently supporting 'ar' (Arabic) and 'zh' (Chinese)" }),
-            { 
-              status: 400, 
-              headers: { ...headers, "Content-Type": "application/json" }
-            }
-          );
+        const body = await parseJsonBody(req, headers);
+        if (body instanceof Response) {
+          return body;
         }
+
+        const validatedRequest = validateTranslateRequest(body, headers);
+        if (validatedRequest instanceof Response) {
+          return validatedRequest;
+        }
+
+        const { text, language } = validatedRequest;
         // Translate and transliterate the text using our modules
-        const translatedText = await translateText(text, openai,0,language);
-        const transliteratedText = await transliterateText(translatedText, openai,0,language);
+        const translatedText = await translateText(text, openai, 0, language);
+        const transliteratedText = await transliterateText(translatedText, openai, 0, language);
         
         // Return the response
-        return new Response(
-          JSON.stringify({ translatedText, transliteratedText }),
-          { headers: { ...headers, "Content-Type": "application/json" } }
-        );
+        return jsonResponse({ translatedText, transliteratedText }, 200, headers);
       } catch (error) {
         console.error("Error processing request:", error);
         
-        return new Response(
-          JSON.stringify({ error: "Failed to process request", message: error.message }),
-          { 
-            status: 500, 
-            headers: { ...headers, "Content-Type": "application/json" }
-          }
+        return jsonError(
+          "translation_failed",
+          error instanceof Error ? error.message : "Failed to process request.",
+          500,
+          headers
         );
       }
     }
@@ -178,38 +224,28 @@ const server = serve({
     // Handle POST requests for speech synthesis
 if (req.method === "POST" && url.pathname === "/speak") {
   try {
-    // Parse the JSON body
-    const body = await req.json();
-    const { text, language="ar" } = body;
-    
-    if (!text) {
-      return new Response(
-        JSON.stringify({ error: "Missing 'text' field" }),
-        { 
-          status: 400, 
-          headers: { ...headers, "Content-Type": "application/json" }
-        }
-      );
+    const body = await parseJsonBody(req, headers);
+    if (body instanceof Response) {
+      return body;
     }
+
+    const validatedRequest = validateTranslateRequest(body, headers);
+    if (validatedRequest instanceof Response) {
+      return validatedRequest;
+    }
+
+    const { text, language } = validatedRequest;
     
-    // Use the new speak module
     const result = await speak({ text, language, headers }, openai);
     
-    // Return the audio data
     return new Response(result.buffer, { headers: result.headers });
   } catch (error) {
-    return handleSpeakError(error, headers);
+    return handleSpeakError(error instanceof Error ? error : new Error("Failed to generate speech"), headers);
   }
 }
 
     
     // Return 404 for all other requests
-    return new Response(
-      JSON.stringify({ error: "Not Found" }),
-      { 
-        status: 404,
-        headers: { ...headers, "Content-Type": "application/json" }
-      }
-    );
+    return jsonError("not_found", "Not Found", 404, headers);
   }
 });
