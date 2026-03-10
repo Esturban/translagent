@@ -98,11 +98,19 @@ h1 {
     min-height: 80px;
 }
 
-.arabic-text {
+.translated-text {
     font-size: 22px;
+    color: #333;
+}
+
+.translated-text[data-language="ar"] {
     direction: rtl;
     text-align: right;
-    color: #333;
+}
+
+.translated-text[data-language="zh"] {
+    direction: ltr;
+    text-align: left;
 }
 
 .transliteration-text {
@@ -208,4 +216,11 @@ color: #e74c3c;
 .language-dropdown:focus {
     outline: none;
     border-color: #3498db;
+}
+
+.listen-hint {
+    margin-top: -10px;
+    margin-bottom: 18px;
+    color: #7f8c8d;
+    font-size: 13px;
 }
