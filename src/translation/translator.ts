@@ -1,13 +1,18 @@
 import OpenAI from 'openai';
+import type { SupportedLanguage } from '../types';
 
-export async function translateText(text: string, openai: OpenAI, temperature: number =0,language: string="ar"): Promise<string> {
+export async function translateText(
+  text: string,
+  openai: OpenAI,
+  temperature: number = 0,
+  language: SupportedLanguage = "ar"
+): Promise<string> {
   try {
-
     let systemMessage = "";
     if (language === "ar") {
-      systemMessage = "You are an expert translator that translates English text to Arabic, especially with a Saudi Arabian dialect from the Riyadh region. Only respond with the translated text.";
+      systemMessage = "Translate English text into Arabic in plain text only. Return only the final translation with no notes, labels, or quotation marks.";
     } else if (language === "zh") {
-      systemMessage = "You are an expert translator that translates English text to Mandarin Chinese. Only respond with the translated text.";
+      systemMessage = "Translate English text into Mandarin Chinese in plain text only. Return only the final translation with no notes, labels, or quotation marks.";
     }
     const response = await openai.chat.completions.create({
       model: "gpt-5-mini",
@@ -21,7 +26,8 @@ export async function translateText(text: string, openai: OpenAI, temperature: n
           content: text
         }
       ],
-      max_completion_tokens: 500
+      max_completion_tokens: 500,
+      temperature
     });
     return response.choices[0].message.content || "";
   } catch (error) {

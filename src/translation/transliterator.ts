@@ -1,13 +1,18 @@
 import OpenAI from 'openai';
+import type { SupportedLanguage } from '../types';
 
-export async function transliterateText(text: string, openai: OpenAI, temperature: number = 0,language: string="ar"): Promise<string> {
+export async function transliterateText(
+  text: string,
+  openai: OpenAI,
+  temperature: number = 0,
+  language: SupportedLanguage = "ar"
+): Promise<string> {
   try {
-    // Select the appropriate system message based on language
     let systemMessage = "";
     if (language === "ar") {
-      systemMessage = "You are a transliterator that converts Arabic text to its Latin alphabet pronunciation equivalent. Only respond with the transliterated text.";
+      systemMessage = "Convert Arabic text into a simple Latin-letter transliteration in plain text only. Return only the transliteration with no notes, labels, or quotation marks.";
     } else if (language === "zh") {
-      systemMessage = "You are a transliterator that converts Chinese text to its pinyin pronunciation. Include tone marks. Only respond with the transliterated text.";
+      systemMessage = "Convert Mandarin Chinese text into pinyin with tone marks in plain text only. Return only the transliteration with no notes, labels, or quotation marks.";
     }
 
     const response = await openai.chat.completions.create({

@@ -67,7 +67,12 @@ export function handleSpeakError(error: Error, headers: Record<string, string> =
   console.error("Speech synthesis error:", error);
   
   return new Response(
-    JSON.stringify({ error: "Failed to generate speech", message: error.message }),
+    JSON.stringify({
+      error: {
+        code: "speech_generation_failed",
+        message: error.message || "Failed to generate speech"
+      }
+    }),
     { 
       status: 500, 
       headers: { ...headers, "Content-Type": "application/json" }
