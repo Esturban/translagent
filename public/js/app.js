@@ -1,153 +1,268 @@
-document.addEventListener('DOMContentLoaded', function() {
-    const sourceText = document.getElementById('sourceText');
-    const translateBtn = document.getElementById('translateBtn');
-    const arabicOutput = document.getElementById('arabicOutput');
-    const transliterationOutput = document.getElementById('transliterationOutput');
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    const errorMsg = document.getElementById('errorMsg');
-    let audioPlayer = new Audio();
-    let isPlaying = false;
+document.addEventListener("DOMContentLoaded", function () {
+    const sourceText = document.getElementById("sourceText");
+    const languageSelect = document.getElementById("languageSelect");
+    const translateBtn = document.getElementById("translateBtn");
+    const translationOutput = document.getElementById("translationOutput");
+    const transliterationOutput = document.getElementById("transliterationOutput");
+    const loadingIndicator = document.getElementById("loadingIndicator");
+    const errorMsg = document.getElementById("errorMsg");
+    const errorMsgBody = document.getElementById("errorMsgBody");
+    const errorMsgDetail = document.getElementById("errorMsgDetail");
+    const speakBtn = document.getElementById("speakBtn");
+    const speakBtnLabel = document.getElementById("speakBtnLabel");
 
-    // Function to translate text
-    async function translateText() {
-        const text = sourceText.value.trim();
-        const language = document.getElementById('languageSelect').value; 
-    
-        if (!text) {
-            showError('Please enter some text to translate.');
+    const audioPlayer = new Audio();
+
+    let isPlaying = false;
+    let isTranslating = false;
+    let isSpeaking = false;
+    let currentAudioUrl = null;
+
+    function setResultValue(element, value) {
+        const content = typeof value === "string" ? value.trim() : "";
+        element.textContent = content;
+        element.classList.toggle("is-empty", !content);
+    }
+
+    function clearResults() {
+        setResultValue(translationOutput, "");
+        setResultValue(transliterationOutput, "");
+    }
+
+    function readApiError(payload, fallbackMessage) {
+        if (payload && payload.error && payload.error.message) {
+            return payload.error.message;
+        }
+
+        return fallbackMessage;
+    }
+
+    function mapVisitorErrorMessage(rawMessage, fallbackMessage) {
+        if (!rawMessage) {
+            return {
+                body: fallbackMessage,
+                detail: ""
+            };
+        }
+
+        const normalizedMessage = String(rawMessage).trim();
+        const loweredMessage = normalizedMessage.toLowerCase();
+
+        if (loweredMessage.includes("quota") || loweredMessage.includes("billing")) {
+            return {
+                body: "Translations are temporarily unavailable right now.",
+                detail: "The upstream language service is rejecting requests because its usage quota has been reached."
+            };
+        }
+
+        if (loweredMessage.includes("rate limit")) {
+            return {
+                body: "Too many requests hit the translator at once.",
+                detail: "Wait a moment and try again."
+            };
+        }
+
+        if (loweredMessage.includes("timeout") || loweredMessage.includes("network")) {
+            return {
+                body: "The translation request could not complete.",
+                detail: "Check your connection and retry."
+            };
+        }
+
+        return {
+            body: fallbackMessage,
+            detail: normalizedMessage
+        };
+    }
+
+    function showError(message, detail) {
+        errorMsgBody.textContent = message;
+        errorMsgDetail.textContent = detail || "";
+        errorMsgDetail.hidden = !detail;
+        errorMsg.hidden = false;
+    }
+
+    function clearError() {
+        errorMsgBody.textContent = "";
+        errorMsgDetail.textContent = "";
+        errorMsgDetail.hidden = true;
+        errorMsg.hidden = true;
+    }
+
+    function updateSpeakButtonLabel() {
+        if (isPlaying) {
+            speakBtnLabel.textContent = "Stop";
             return;
         }
-        
-        // Reset UI
+
+        if (isSpeaking) {
+            speakBtnLabel.textContent = "Loading audio";
+            return;
+        }
+
+        speakBtnLabel.textContent = "Listen";
+    }
+
+    function syncSpeakButton() {
+        const hasTranslation = Boolean(translationOutput.textContent.trim());
+        speakBtn.disabled = isTranslating || isSpeaking || !hasTranslation;
+        speakBtn.classList.toggle("playing", isPlaying);
+        updateSpeakButtonLabel();
+    }
+
+    function setTranslationLoading(isLoading) {
+        isTranslating = isLoading;
+        loadingIndicator.hidden = !isLoading;
+        translateBtn.disabled = isLoading;
+        sourceText.disabled = isLoading;
+        languageSelect.disabled = isLoading;
+        syncSpeakButton();
+    }
+
+    function stopAudioPlayback() {
+        audioPlayer.pause();
+        audioPlayer.currentTime = 0;
+        isPlaying = false;
+        isSpeaking = false;
+
+        if (currentAudioUrl) {
+            URL.revokeObjectURL(currentAudioUrl);
+            currentAudioUrl = null;
+        }
+
+        syncSpeakButton();
+    }
+
+    async function translateText() {
+        const text = sourceText.value.trim();
+        const language = languageSelect.value;
+
+        if (!text) {
+            showError("Enter some English text before translating.", "");
+            return;
+        }
+
         clearError();
-        showLoading(true);
-        speakBtn.disabled = true;
+        stopAudioPlayback();
+        setTranslationLoading(true);
+        clearResults();
+        translationOutput.dataset.language = language;
+
         try {
-            const response = await fetch('/translate', {
-method: 'POST',
-headers: {
-'Content-Type': 'application/json'
-},
-body: JSON.stringify({ text, language })
-});
-            
+            const response = await fetch("/translate", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ text, language })
+            });
+
+            const data = await response.json().catch(function () {
+                return null;
+            });
+
             if (!response.ok) {
-                throw new Error(`Server responded with status: ${response.status}`);
+                const rawMessage = readApiError(data, "Translation request failed.");
+                throw new Error(rawMessage);
             }
-            
-            const data = await response.json();
-            
-            if (data.error) {
-                throw new Error(data.error);
-            }
-            
-            // Display results
-            arabicOutput.textContent = data.translatedText || '';
-            transliterationOutput.textContent = data.transliteratedText || '';
-            speakBtn.disabled = !data.translatedText;
+
+            setResultValue(translationOutput, data.translatedText || "");
+            setResultValue(transliterationOutput, data.transliteratedText || "");
         } catch (error) {
-            console.error('Translation error:', error);
-            showError(`Translation failed: ${error.message}`);
-            
-            // Clear outputs
-            arabicOutput.textContent = '';
-            transliterationOutput.textContent = '';
-            speakBtn.disabled = true;
+            console.error("Translation error:", error);
+            clearResults();
+
+            const friendlyError = mapVisitorErrorMessage(
+                error instanceof Error ? error.message : "",
+                "The translator could not return a result right now."
+            );
+
+            showError(friendlyError.body, friendlyError.detail);
         } finally {
-            showLoading(false);
+            setTranslationLoading(false);
         }
     }
-    
-    // Helper functions
-    function showLoading(isLoading) {
-        loadingIndicator.style.display = isLoading ? 'block' : 'none';
-        translateBtn.disabled = isLoading;
+
+    async function speakText() {
+        const translatedText = translationOutput.textContent.trim();
+        const language = languageSelect.value;
+
+        if (!translatedText) {
+            showError("Translate text before using audio playback.", "");
+            return;
+        }
+
+        if (isPlaying) {
+            stopAudioPlayback();
+            return;
+        }
+
+        clearError();
+        isSpeaking = true;
+        syncSpeakButton();
+
+        try {
+            const response = await fetch("/speak", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ text: translatedText, language })
+            });
+
+            if (!response.ok) {
+                const data = await response.json().catch(function () {
+                    return null;
+                });
+                throw new Error(readApiError(data, "Speech request failed."));
+            }
+
+            const audioBlob = await response.blob();
+            currentAudioUrl = URL.createObjectURL(audioBlob);
+            audioPlayer.src = currentAudioUrl;
+            await audioPlayer.play();
+
+            isPlaying = true;
+            isSpeaking = false;
+            syncSpeakButton();
+        } catch (error) {
+            console.error("Speech synthesis error:", error);
+
+            const friendlyError = mapVisitorErrorMessage(
+                error instanceof Error ? error.message : "",
+                "Audio playback is unavailable right now."
+            );
+
+            showError(friendlyError.body, friendlyError.detail);
+            stopAudioPlayback();
+        } finally {
+            if (!isPlaying) {
+                isSpeaking = false;
+                syncSpeakButton();
+            }
+        }
     }
-    
-    function showError(message) {
-        errorMsg.textContent = message;
-        errorMsg.style.display = 'block';
-    }
-    
-    function clearError() {
-        errorMsg.textContent = '';
-        errorMsg.style.display = 'none';
-    }
-    
-    // Event listeners
-    translateBtn.addEventListener('click', translateText);
-    
-    // Allow Ctrl+Enter to translate
-    sourceText.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-            e.preventDefault();
+
+    audioPlayer.onended = function () {
+        stopAudioPlayback();
+    };
+
+    audioPlayer.onerror = function () {
+        showError("Audio playback could not finish.", "Try requesting the audio again.");
+        stopAudioPlayback();
+    };
+
+    translateBtn.addEventListener("click", translateText);
+    speakBtn.addEventListener("click", speakText);
+
+    sourceText.addEventListener("keydown", function (event) {
+        if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+            event.preventDefault();
             translateText();
         }
     });
+
+    clearResults();
+    clearError();
+    syncSpeakButton();
 });
-
-const speakBtn = document.getElementById('speakBtn');
-let audioPlayer = new Audio();
-let isPlaying = false;
-
-// Function to handle text-to-speech
-async function speakText() {
-const langText = arabicOutput.textContent;
-
-if (!langText) {
-showError('No text to speak.');
-return;
-}
-
-// If already playing, stop it
-if (isPlaying) {
-audioPlayer.pause();
-audioPlayer.currentTime = 0;
-isPlaying = false;
-speakBtn.classList.remove('playing');
-return;
-}
-
-// Show loading state
-speakBtn.disabled = true;
-
-try {
-const response = await fetch('/speak', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ text: langText })
-});
-
-if (!response.ok) {
-    throw new Error(`Server responded with status: ${response.status}`);
-}
-
-const audioBlob = await response.blob();
-const audioUrl = URL.createObjectURL(audioBlob);
-
-// Play the audio
-audioPlayer.src = audioUrl;
-audioPlayer.play();
-isPlaying = true;
-speakBtn.classList.add('playing');
-
-// Enable button after audio ends
-audioPlayer.onended = function() {
-    isPlaying = false;
-    speakBtn.classList.remove('playing');
-    speakBtn.disabled = false;
-};
-} catch (error) {
-console.error('Speech synthesis error:', error);
-showError(`Failed to generate speech: ${error.message}`);
-} finally {
-if (!isPlaying) {
-    speakBtn.disabled = false;
-}
-}
-}
-
-// Add event listener for speak button
-speakBtn.addEventListener('click', speakText);

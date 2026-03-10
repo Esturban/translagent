@@ -4,58 +4,146 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Translagent</title>
+    <meta
+        name="description"
+        content="Translate English into Arabic or Mandarin, review the transliteration, and optionally listen to the result."
+    >
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Translagent</h1>
-            <p class="app-description">Helping you translate... and learn! 📝</p>
-        </header>
-        
-        <main class="translation-container">
-            <!-- Left side - Input -->
-            <div class="input-panel">
-                <h2 class="panel-title">English Input</h2>
+    <div class="page-shell">
+        <div class="page-orb page-orb-left" aria-hidden="true"></div>
+        <div class="page-orb page-orb-right" aria-hidden="true"></div>
 
-                <textarea class="text-input" id="sourceText" placeholder="Enter text to translate..."></textarea>
-                <div class="language-selector">
-                    <label for="languageSelect">Translate to:</label>
-                    <select id="languageSelect" class="language-dropdown">
-                        <option value="ar">Arabic</option>
-                        <option value="zh">Chinese (Mandarin)</option>
-                    </select>
-                </div>
-                <button class="translate-btn" id="translateBtn">Translate</button>
-                <p class="error-message" id="errorMsg"></p>
+        <header class="hero">
+            <p class="eyebrow">Editorial translation utility</p>
+            <div class="hero-copy">
+                <h1>Translagent</h1>
+                <p class="hero-description">
+                    Translate English into Arabic or Mandarin with a calm, readable workflow built for quick mobile use.
+                </p>
             </div>
-            
-            <!-- Right side - Output -->
-            <div class="output-panel">
-                <h2 class="panel-title">Results</h2>
-                
-                <div>
-                    <p class="output-label">Translation</p>
-                    <div class="output-container">
-                        <div class="output-box arabic-text" id="arabicOutput"></div>
-                        <button class="audio-btn" id="speakBtn" title="Listen" disabled>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M11.536 14.01A8.473 8.473 0 0 0 14.026 8a8.473 8.473 0 0 0-2.49-6.01l-.708.707A7.476 7.476 0 0 1 13.025 8c0 2.071-.84 3.946-2.197 5.303l.708.707z"/>
-                                <path d="M10.121 12.596A6.48 6.48 0 0 0 12.025 8a6.48 6.48 0 0 0-1.904-4.596l-.707.707A5.483 5.483 0 0 1 11.025 8a5.483 5.483 0 0 1-1.61 3.89l.706.706z"/>
-                                <path d="M8.707 11.182A4.486 4.486 0 0 0 10.025 8a4.486 4.486 0 0 0-1.318-3.182L8 5.525A3.489 3.489 0 0 1 9.025 8 3.49 3.49 0 0 1 8 10.475l.707.707zM6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A.5.5 0 0 1 1 10V6a.5.5 0 0 1 .5-.5h2.325l2.363-1.89a.5.5 0 0 1 .529-.06z"/>
-                            </svg>
-                        </button>
+            <div class="hero-meta">
+                <p class="hero-note">Translation, transliteration, and optional audio in one place.</p>
+                <p class="hero-shortcut">Use <kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>Enter</kbd> to translate faster.</p>
+            </div>
+        </header>
+
+        <main class="main-grid">
+            <section class="panel panel-input" aria-labelledby="inputTitle">
+                <div class="panel-header">
+                    <div>
+                        <p class="panel-eyebrow">Input</p>
+                        <h2 id="inputTitle">English source</h2>
                     </div>
+                    <p class="panel-intro">Paste a phrase, sentence, or short paragraph and choose where it should go.</p>
                 </div>
-                
-                <div>
-                    <p class="output-label">Transliteration</p>
-                    <div class="output-box transliteration-text" id="transliterationOutput"></div>
+
+                <div class="field-group">
+                    <label class="field-label" for="sourceText">Text to translate</label>
+                    <textarea
+                        class="text-input"
+                        id="sourceText"
+                        placeholder="Try: Where can I find a quiet place to work nearby?"
+                    ></textarea>
                 </div>
-                
-                <div class="loading" id="loadingIndicator">
-                    <span class="spinner"></span> Translating...
+
+                <div class="controls-row">
+                    <div class="field-group field-compact">
+                        <label class="field-label" for="languageSelect">Target language</label>
+                        <select id="languageSelect" class="language-dropdown">
+                            <option value="ar">Arabic</option>
+                            <option value="zh">Chinese (Mandarin)</option>
+                        </select>
+                    </div>
+                    <button class="translate-btn" id="translateBtn" type="button">Translate text</button>
                 </div>
+
+                <p class="helper-copy">
+                    Results include the translated script plus a Latin transliteration to help with pronunciation.
+                </p>
+
+                <div class="message error-message" id="errorMsg" role="alert" aria-live="polite" hidden>
+                    <p class="message-title">Something went wrong</p>
+                    <p class="message-body" id="errorMsgBody"></p>
+                    <p class="message-detail" id="errorMsgDetail" hidden></p>
+                </div>
+            </section>
+
+            <div class="secondary-column">
+                <section class="panel panel-results" aria-labelledby="resultsTitle">
+                    <div class="panel-header">
+                        <div>
+                            <p class="panel-eyebrow">Output</p>
+                            <h2 id="resultsTitle">Translation results</h2>
+                        </div>
+                        <div class="loading" id="loadingIndicator" aria-live="polite" hidden>
+                            <span class="spinner" aria-hidden="true"></span>
+                            <span>Translating…</span>
+                        </div>
+                    </div>
+
+                    <div class="result-group">
+                        <div class="result-header">
+                            <div>
+                                <p class="output-label">Translation</p>
+                                <p class="output-subtitle">Native script output</p>
+                            </div>
+                            <button class="audio-btn" id="speakBtn" type="button" aria-label="Listen to translation" disabled>
+                                <span class="audio-btn-icon" aria-hidden="true">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor">
+                                        <path d="M11.536 14.01A8.473 8.473 0 0 0 14.026 8a8.473 8.473 0 0 0-2.49-6.01l-.708.707A7.476 7.476 0 0 1 13.025 8c0 2.071-.84 3.946-2.197 5.303l.708.707Z"/>
+                                        <path d="M10.121 12.596A6.48 6.48 0 0 0 12.025 8a6.48 6.48 0 0 0-1.904-4.596l-.707.707A5.483 5.483 0 0 1 11.025 8a5.483 5.483 0 0 1-1.61 3.89l.706.706Z"/>
+                                        <path d="M8.707 11.182A4.486 4.486 0 0 0 10.025 8a4.486 4.486 0 0 0-1.318-3.182L8 5.525A3.489 3.489 0 0 1 9.025 8 3.49 3.49 0 0 1 8 10.475l.707.707ZM6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A.5.5 0 0 1 1 10V6a.5.5 0 0 1 .5-.5h2.325l2.363-1.89a.5.5 0 0 1 .529-.06Z"/>
+                                    </svg>
+                                </span>
+                                <span class="audio-btn-label" id="speakBtnLabel">Listen</span>
+                            </button>
+                        </div>
+                        <div
+                            class="output-box translated-text is-empty"
+                            id="translationOutput"
+                            data-placeholder="Your translated text will appear here."
+                            aria-live="polite"
+                        ></div>
+                    </div>
+
+                    <div class="result-group">
+                        <div class="result-header result-header-static">
+                            <div>
+                                <p class="output-label">Transliteration</p>
+                                <p class="output-subtitle">Latin pronunciation guide</p>
+                            </div>
+                        </div>
+                        <div
+                            class="output-box transliteration-text is-empty"
+                            id="transliterationOutput"
+                            data-placeholder="The pronunciation-friendly transliteration will appear here."
+                            aria-live="polite"
+                        ></div>
+                    </div>
+
+                    <p class="listen-hint">Audio becomes available after a successful translation.</p>
+                </section>
+
+                <aside class="panel panel-about" aria-labelledby="aboutTitle">
+                    <div class="panel-header panel-header-compact">
+                        <div>
+                            <p class="panel-eyebrow">About</p>
+                            <h2 id="aboutTitle">Built by Esteban Valencia</h2>
+                        </div>
+                    </div>
+                    <p class="about-copy">
+                        Product builder, operator, and creative technologist. If this tool is useful, you can explore more of my work or reach me directly below.
+                    </p>
+                    <nav class="about-links" aria-label="Portfolio and profile links">
+                        <a href="https://works.estebanvalencia.com" target="_blank" rel="noreferrer">Portfolio</a>
+                        <a href="https://github.com/Esturban" target="_blank" rel="noreferrer">GitHub</a>
+                        <a href="https://linkedin.com/in/valest" target="_blank" rel="noreferrer">LinkedIn</a>
+                        <a href="mailto:me@estebanvalencia.com">Contact</a>
+                    </nav>
+                </aside>
             </div>
         </main>
     </div>

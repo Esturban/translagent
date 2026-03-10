@@ -1,4 +1,5 @@
-// Rate limiting implementation
+// Best-effort, instance-local rate limiting for public traffic.
+// On Cloud Run this only applies per container instance.
 interface RateLimitInfo {
     count: number;
     resetTime: number;
@@ -46,4 +47,8 @@ interface RateLimitInfo {
     rateLimits.set(ip, limitInfo);
     
     return limitInfo.count > MAX_REQUESTS;
+  }
+
+  export function getRateLimitWindowSeconds(): number {
+    return Math.ceil(WINDOW_MS / 1000);
   }

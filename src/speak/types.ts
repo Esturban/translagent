@@ -1,6 +1,8 @@
+import type { SupportedLanguage } from '../types';
+
 export interface SpeakOptions {
   text: string;
-  language?: string;
+  language?: SupportedLanguage;
   headers?: Record<string, string>;
 }
 
