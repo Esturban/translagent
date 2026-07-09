@@ -1,0 +1,5 @@
+Total messages: 2 (Errors: 2, Warnings: 0)
+
+[ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:3010/translate:0
+[ERROR] Translation error: Error: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.
+    at HTMLButtonElement.translateText (http://127.0.0.1:3010/js/app.js:166:23) @ http://127.0.0.1:3010/js/app.js:171
