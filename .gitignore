@@ -179,3 +179,4 @@ dist
 
 # AI-tool scaffolding
 .github/copilot-instructions.md
+.codegraph/
