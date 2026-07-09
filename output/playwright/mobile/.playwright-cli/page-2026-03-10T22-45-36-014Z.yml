@@ -1,0 +1,22 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - heading "Translagent" [level=1] [ref=e4]
+    - paragraph [ref=e5]: Translate English into Arabic or Mandarin, then read the transliteration and optionally listen.
+  - main [ref=e6]:
+    - generic [ref=e7]:
+      - heading "English Input" [level=2] [ref=e8]
+      - textbox "Enter text to translate..." [ref=e9]
+      - generic [ref=e10]:
+        - generic [ref=e11]: "Translate to:"
+        - combobox "Translate to:" [ref=e12] [cursor=pointer]:
+          - option "Arabic" [selected]
+          - option "Chinese (Mandarin)"
+      - button "Translate" [ref=e13] [cursor=pointer]
+    - generic [ref=e14]:
+      - heading "Results" [level=2] [ref=e15]
+      - generic [ref=e16]:
+        - paragraph [ref=e17]: Translation
+        - button "Listen" [disabled] [ref=e20]:
+          - img [ref=e21]
+        - paragraph [ref=e25]: Listen is optional and becomes available after a translation is returned.
+      - paragraph [ref=e27]: Transliteration
