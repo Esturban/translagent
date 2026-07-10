@@ -34,7 +34,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          OWNER="${GITHUB_REPOSITORY_OWNER}"
+          # Hardcoded, not ${GITHUB_REPOSITORY_OWNER}: that resolves to the org
+          # name on org-owned repos (e.g. EV-Advisory), which isn't a valid PR
+          # reviewer/assignee target -- both calls silently no-op with `|| true`
+          # swallowing the error, so the Action reports success while doing nothing.
+          OWNER="Esturban"
           echo "dev -> ${TRUNK} (reviewer: ${OWNER})"
 
           # No commits on dev ahead of trunk -> nothing to PR (fires again next push).
